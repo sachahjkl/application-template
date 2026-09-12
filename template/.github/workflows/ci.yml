@@ -1,0 +1,17 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  platform:
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+    uses: sachahjkl/deployment-actions/.github/workflows/application-ci.yml@v3.0.1

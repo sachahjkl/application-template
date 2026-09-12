@@ -1,0 +1,15 @@
+application:
+  name: example
+  port: 8080
+  healthPath: /health
+
+environments:
+  staging:
+    domain: staging.example.sacha.house
+    noIndex: true
+  production:
+    domain: example.sacha.house
+
+resources:
+  cpu: 200
+  memory: 256
