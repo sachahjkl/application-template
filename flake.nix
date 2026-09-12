@@ -84,7 +84,15 @@
 
         cp -R ${self} "$TMPDIR/stateful"
         chmod -R u+w "$TMPDIR/stateful"
-        cat >> "$TMPDIR/stateful/application.yaml" <<'EOF'
+        cat > "$TMPDIR/stateful/application.yaml" <<'EOF'
+        application:
+          name: example
+          port: 8080
+          healthPath: /health
+
+        domain:
+          production: example.sacha.house
+          staging: staging.example.sacha.house
 
         volume:
           mountPath: /data
