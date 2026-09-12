@@ -62,10 +62,12 @@ jobs:
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Authenticate to Nomad
         run: |
+          set -euo pipefail
           oidc=$(curl --fail --silent --show-error \
             --header "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$NOMAD_AUTH_AUDIENCE" | jq -r .value)
           token=$(nomad login -method github-actions -login-token "$oidc" -json | jq -r .SecretID)
+          test -n "$token" && test "$token" != null
           printf '::add-mask::%s\n' "$token"
           printf 'NOMAD_TOKEN=%s\n' "$token" >>"$GITHUB_ENV"
       - name: Verify and promote the staging image
