@@ -78,6 +78,7 @@ jobs:
           HEALTH_PATH: ${{ steps.config.outputs.health_path }}
           JOB_NAME: ${{ steps.config.outputs.name }}
           NOMAD_NAMESPACE: production
+          VOLUME_ENABLED: ${{ steps.config.outputs.volume_enabled }}
         run: |
           image=$(timeout 30s nomad job inspect -namespace staging -json "$JOB_NAME" | jq -r .Meta.image)
           [[ "$image" =~ ^ghcr\.io/[a-z0-9_.-]+/[a-z0-9_.-]+@sha256:[0-9a-f]{64}$ ]]
@@ -91,6 +92,15 @@ jobs:
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             --type spdxjson "$image" >/dev/null 2>&1
           timeout 2m gh attestation verify "oci://$image" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1
+          if [ "$VOLUME_ENABLED" = true ]; then
+            volume_name="$JOB_NAME-production-data"
+            if ! nomad volume status -type host -json \
+              | jq -e --arg name "$volume_name" 'any(.Name == $name)' >/dev/null; then
+              volume="$RUNNER_TEMP/production.volume.hcl"
+              nix run .#deploymentConfig -- volume-spec production >"$volume"
+              timeout 30s nomad volume create "$volume"
+            fi
+          fi
           vars="$RUNNER_TEMP/production.vars.hcl"
           nix run .#deploymentConfig -- nomad-vars production "$image" >"$vars"
           pack="$RUNNER_TEMP/production-pack"

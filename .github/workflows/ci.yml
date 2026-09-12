@@ -166,7 +166,17 @@ jobs:
           IMAGE: ${{ needs.publish.outputs.image }}
           JOB_NAME: ${{ steps.config.outputs.name }}
           NOMAD_NAMESPACE: staging
+          VOLUME_ENABLED: ${{ steps.config.outputs.volume_enabled }}
         run: |
+          if [ "$VOLUME_ENABLED" = true ]; then
+            volume_name="$JOB_NAME-staging-data"
+            if ! nomad volume status -type host -json \
+              | jq -e --arg name "$volume_name" 'any(.Name == $name)' >/dev/null; then
+              volume="$RUNNER_TEMP/staging.volume.hcl"
+              nix run .#deploymentConfig -- volume-spec staging >"$volume"
+              timeout 30s nomad volume create "$volume"
+            fi
+          fi
           vars="$RUNNER_TEMP/staging.vars.hcl"
           nix run .#deploymentConfig -- nomad-vars staging "$IMAGE" >"$vars"
           pack="$RUNNER_TEMP/staging-pack"

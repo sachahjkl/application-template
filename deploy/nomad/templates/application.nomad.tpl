@@ -15,6 +15,15 @@ job [[ var "name" . | quote ]] {
   group "web" {
     count = 1
 
+[[ if var "volume_enabled" . ]]
+    volume "data" {
+      type            = "host"
+      source          = [[ var "volume_name" . | quote ]]
+      access_mode     = "single-node-single-writer"
+      attachment_mode = "file-system"
+    }
+[[ end ]]
+
     update {
       max_parallel      = 1
       health_check      = "checks"
@@ -39,6 +48,13 @@ job [[ var "name" . | quote ]] {
         image = [[ var "image" . | quote ]]
         ports = ["http"]
       }
+
+[[ if var "volume_enabled" . ]]
+      volume_mount {
+        volume      = "data"
+        destination = [[ var "volume_mount_path" . | quote ]]
+      }
+[[ end ]]
 
       service {
         name     = "[[ var "name" . ]]-[[ var "environment" . ]]"

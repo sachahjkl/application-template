@@ -21,3 +21,15 @@ variable "port" {
 variable "service_tags" {
   type = list(string)
 }
+
+variable "volume_enabled" {
+  type = bool
+}
+
+variable "volume_mount_path" {
+  type = string
+}
+
+variable "volume_name" {
+  type = string
+}

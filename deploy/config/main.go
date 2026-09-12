@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 
@@ -22,6 +23,7 @@ var (
 type config struct {
 	Application application `yaml:"application"`
 	Domain      domains     `yaml:"domain"`
+	Volume      *volume     `yaml:"volume,omitempty"`
 }
 
 type application struct {
@@ -33,6 +35,10 @@ type application struct {
 type domains struct {
 	Production string `yaml:"production"`
 	Staging    string `yaml:"staging"`
+}
+
+type volume struct {
+	MountPath string `yaml:"mountPath"`
 }
 
 func load(path string) (config, error) {
@@ -94,6 +100,12 @@ func (value config) validate() error {
 	if value.Domain.Production == value.Domain.Staging {
 		return errors.New("staging and production domains must be different")
 	}
+	if value.Volume != nil {
+		mountPath := value.Volume.MountPath
+		if !strings.HasPrefix(mountPath, "/") || path.Clean(mountPath) != mountPath || mountPath == "/" {
+			return errors.New("volume.mountPath must be a clean absolute path below /")
+		}
+	}
 	return nil
 }
 
@@ -111,6 +123,7 @@ func (value config) githubOutput() {
 	fmt.Printf("health_path=%s\n", value.Application.HealthPath)
 	fmt.Printf("staging_domain=%s\n", value.Domain.Staging)
 	fmt.Printf("production_domain=%s\n", value.Domain.Production)
+	fmt.Printf("volume_enabled=%t\n", value.Volume != nil)
 }
 
 func (value config) nomadVars(environment, image string) error {
@@ -147,6 +160,9 @@ func (value config) nomadVars(environment, image string) error {
 		{"image", image},
 		{"port", value.Application.Port},
 		{"service_tags", tags},
+		{"volume_enabled", value.Volume != nil},
+		{"volume_mount_path", value.volumeMountPath()},
+		{"volume_name", value.volumeName(environment)},
 	}
 	for _, entry := range values {
 		encoded, err := json.Marshal(entry.value)
@@ -155,6 +171,36 @@ func (value config) nomadVars(environment, image string) error {
 		}
 		fmt.Printf("%s = %s\n", entry.name, encoded)
 	}
+	return nil
+}
+
+func (value config) volumeMountPath() string {
+	if value.Volume == nil {
+		return ""
+	}
+	return value.Volume.MountPath
+}
+
+func (value config) volumeName(environment string) string {
+	return value.Application.Name + "-" + environment + "-data"
+}
+
+func (value config) volumeSpec(environment string) error {
+	if _, err := value.domain(environment); err != nil {
+		return err
+	}
+	if value.Volume == nil {
+		return errors.New("application.yaml does not declare a volume")
+	}
+	fmt.Printf("namespace = %q\n", environment)
+	fmt.Printf("name = %q\n", value.volumeName(environment))
+	fmt.Println("type = \"host\"")
+	fmt.Println("plugin_id = \"mkdir\"")
+	fmt.Println("parameters = { mode = \"0700\" }")
+	fmt.Println("capability {")
+	fmt.Println("  access_mode = \"single-node-single-writer\"")
+	fmt.Println("  attachment_mode = \"file-system\"")
+	fmt.Println("}")
 	return nil
 }
 
@@ -184,7 +230,10 @@ func run(args []string) error {
 	if args[0] == "nomad-vars" && len(args) == 3 {
 		return value.nomadVars(args[1], args[2])
 	}
-	return errors.New("usage: deployment-config {validate|github-output|nomad-vars ENV IMAGE}")
+	if args[0] == "volume-spec" && len(args) == 2 {
+		return value.volumeSpec(args[1])
+	}
+	return errors.New("usage: deployment-config {validate|github-output|nomad-vars ENV IMAGE|volume-spec ENV}")
 }
 
 func main() {

@@ -25,6 +25,17 @@ Choose each domain explicitly. The platform accepts subdomains of:
 
 The wildcard DNS records route these domains to Traefik automatically.
 
+Add this optional block when the application stores persistent data:
+
+```yaml
+volume:
+  mountPath: /data
+```
+
+The deployment creates one Nomad dynamic host volume per environment.
+
+Removing this block does not delete existing data.
+
 ## Replace the example application
 
 Replace the Caddy example with your application package and OCI image.

@@ -53,7 +53,7 @@
         check-merge-conflicts.enable = true;
         check-yaml.enable = true;
         end-of-file-fixer.enable = true;
-        ruff.enable = true;
+        gofmt.enable = true;
         trim-trailing-whitespace.enable = true;
       };
     };
@@ -81,6 +81,21 @@
         nomad-pack render deploy/nomad --var-file "$TMPDIR/production.vars.hcl" --to-dir "$TMPDIR/production" --auto-approve
         nomad job validate "$TMPDIR/staging/homelab-application/application.nomad"
         nomad job validate "$TMPDIR/production/homelab-application/application.nomad"
+
+        cp -R ${self} "$TMPDIR/stateful"
+        chmod -R u+w "$TMPDIR/stateful"
+        cat >> "$TMPDIR/stateful/application.yaml" <<'EOF'
+
+        volume:
+          mountPath: /data
+        EOF
+        cd "$TMPDIR/stateful"
+        deployment-config validate
+        deployment-config volume-spec staging > "$TMPDIR/staging.volume.hcl"
+        grep -F 'name = "example-staging-data"' "$TMPDIR/staging.volume.hcl"
+        deployment-config nomad-vars staging "$image" > "$TMPDIR/stateful.vars.hcl"
+        nomad-pack render deploy/nomad --var-file "$TMPDIR/stateful.vars.hcl" --to-dir "$TMPDIR/stateful-pack" --auto-approve
+        nomad job validate "$TMPDIR/stateful-pack/homelab-application/application.nomad"
         touch "$out"
       '';
       pre-commit = preCommitCheck;
