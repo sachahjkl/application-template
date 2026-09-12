@@ -74,6 +74,7 @@ jobs:
         timeout-minutes: 15
         env:
           DOMAIN: ${{ steps.config.outputs.production_domain }}
+          GH_TOKEN: ${{ github.token }}
           HEALTH_PATH: ${{ steps.config.outputs.health_path }}
           JOB_NAME: ${{ steps.config.outputs.name }}
           NOMAD_NAMESPACE: production
@@ -84,12 +85,12 @@ jobs:
           timeout 2m cosign verify \
             --certificate-identity "$identity" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            "$image" >/dev/null
+            "$image" >/dev/null 2>&1
           timeout 2m cosign verify-attestation \
             --certificate-identity "$identity" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            --type spdxjson "$image" >/dev/null
-          timeout 2m gh attestation verify "oci://$image" --repo "$GITHUB_REPOSITORY" >/dev/null
+            --type spdxjson "$image" >/dev/null 2>&1
+          timeout 2m gh attestation verify "oci://$image" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1
           vars="$RUNNER_TEMP/production.vars.hcl"
           nix run .#deploymentConfig -- nomad-vars production "$image" >"$vars"
           pack="$RUNNER_TEMP/production-pack"
