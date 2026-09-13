@@ -1,0 +1,9 @@
+name: "application-template"
+description: "Nix, Nomad, Traefik, and GitHub Actions application template"
+topics:
+  []
+homepage: ""
+source:
+  provider: github
+  namespace: "sachahjkl"
+  path: "sachahjkl/application-template"
