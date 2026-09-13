@@ -10,7 +10,6 @@
   };
 
   outputs = {
-    self,
     nixpkgs,
     git-hooks,
   }: let
